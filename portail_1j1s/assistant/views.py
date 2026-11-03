@@ -6,11 +6,10 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
+from .conf import assistant_enabled
 from .models import AssistantConversation
 from .services.albert import AlbertAPIError, AlbertClient
 from .services.markdown import render_assistant_markdown
-
-from .conf import assistant_enabled
 
 CONVERSATION_ID_SESSION_KEY = "assistant_1j1s_conversation_id"
 
@@ -131,10 +130,10 @@ def assistant_chat(request):
     """Reçoit une question et retourne la réponse d'Albert API."""
 
     if not assistant_enabled():
-    return JsonResponse(
-        {"error": "L'assistant IA est désactivé."},
-        status=503,
-    )
+        return JsonResponse(
+            {"error": "L'assistant IA est désactivé."},
+            status=503,
+        )
 
     try:
         data = json.loads(request.body)
