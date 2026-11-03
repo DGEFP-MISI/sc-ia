@@ -20,6 +20,7 @@ TEMPLATE_404 = "sites_conformes_core/404.html"
 TEMPLATE_500 = "sites_conformes_core/500.html"
 
 urlpatterns = [
+    path("assistant/", include("portail_1j1s.assistant.urls")),
     path("sitemap.xml", sitemap, name="xml_sitemap"),
     path(
         f"{settings.WAGTAILADMIN_PATH}password_reset/confirm/<uidb64>/<token>/",

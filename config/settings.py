@@ -43,6 +43,14 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = getenv_bool("DEBUG", False)
 
+# Protection des cookies de session et CSRF en production.
+SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+
+CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SAMESITE = "Lax"
+
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,.localhost").replace(" ", "").split(",")
 USE_X_FORWARDED_HOST = getenv_bool("USE_X_FORWARDED_HOST", False)
 
@@ -109,6 +117,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "widget_tweaks",
     "dsfr",
+    "portail_1j1s.assistant.apps.AssistantConfig",
     "sites_conformes.customimages",
     "sites_conformes.core",
     "sites_conformes.blog",
