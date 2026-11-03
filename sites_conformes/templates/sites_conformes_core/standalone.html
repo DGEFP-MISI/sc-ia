@@ -25,6 +25,7 @@
 
     {% dsfr_css %}
     <link href="{% static 'css/style.css' %}" rel="stylesheet" type="text/css" />
+    <link href="{% static 'assistant/assistant.css' %}" rel="stylesheet" type="text/css" />
 
     {% block extra_css %}
     {% endblock extra_css %}
@@ -60,6 +61,8 @@
       {% endblock content %}
     </main>
 
+    {% include "assistant/sidebar.html" %}
+
     {% block follow_newsletter_social_media %}
       {% if settings.sites_conformes_core.CmsDsfrConfig.show_newsletter_and_social_block %}
         <aside id="cmsfr-block-follow">
@@ -75,6 +78,7 @@
     {% endif %}
 
     {% dsfr_js nonce=request.csp_nonce %}
+    <script src="{% static 'assistant/assistant.js' %}" defer nonce="{{ request.csp_nonce }}"></script>
     {% block extra_js %}
     {% endblock extra_js %}
 
