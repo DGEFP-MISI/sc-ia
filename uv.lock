@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12, <4.0"
 
 [options]
@@ -1987,7 +1987,9 @@ dependencies = [
     { name = "faker" },
     { name = "gunicorn" },
     { name = "icalendar" },
+    { name = "markdown" },
     { name = "mozilla-django-oidc" },
+    { name = "nh3" },
     { name = "packaging" },
     { name = "psycopg2-binary" },
     { name = "python-dotenv" },
@@ -2038,7 +2040,9 @@ requires-dist = [
     { name = "faker", specifier = ">=37.4.0" },
     { name = "gunicorn", specifier = ">=23.0.0" },
     { name = "icalendar", specifier = ">=6.3.1" },
+    { name = "markdown", specifier = ">=3.11" },
     { name = "mozilla-django-oidc", specifier = ">=4.0.1" },
+    { name = "nh3", specifier = ">=0.3.7" },
     { name = "packaging", specifier = ">=26.3" },
     { name = "psycopg2-binary", specifier = ">=2.9.10" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
