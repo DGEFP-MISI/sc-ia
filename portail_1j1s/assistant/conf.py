@@ -4,9 +4,7 @@ import os
 def assistant_enabled():
     """Indique si l'assistant est activé."""
 
-    return os.environ.get(
-        "ASSISTANT_IA_ENABLED", "false"
-    ).lower() == "true"
+    return os.environ.get("ASSISTANT_IA_ENABLED", "false").lower() == "true"
 
 
 def assistant_name():

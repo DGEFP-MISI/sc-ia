@@ -1,14 +1,29 @@
 import markdown
 import nh3
 
-
 ALLOWED_TAGS = {
-    "p", "br", "strong", "em", "del",
-    "h2", "h3", "h4",
-    "ul", "ol", "li",
-    "blockquote", "code", "pre",
-    "table", "thead", "tbody", "tr", "th", "td",
-    "a", "hr",
+    "p",
+    "br",
+    "strong",
+    "em",
+    "del",
+    "h2",
+    "h3",
+    "h4",
+    "ul",
+    "ol",
+    "li",
+    "blockquote",
+    "code",
+    "pre",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
+    "a",
+    "hr",
 }
 
 ALLOWED_ATTRIBUTES = {

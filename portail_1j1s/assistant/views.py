@@ -6,15 +6,15 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
+from .models import AssistantConversation
 from .services.albert import AlbertAPIError, AlbertClient
 from .services.markdown import render_assistant_markdown
-
-from .models import AssistantConversation
 
 CONVERSATION_ID_SESSION_KEY = "assistant_1j1s_conversation_id"
 
 CONVERSATION_LIFETIME_SECONDS = 30 * 60
 CONVERSATION_MAX_MESSAGES = 20
+
 
 def get_conversation_history(request):
     """Récupère l'historique de la conversation anonyme non expirée."""
@@ -34,9 +34,7 @@ def get_conversation_history(request):
         request.session.pop(CONVERSATION_ID_SESSION_KEY, None)
         return []
 
-    conversation = AssistantConversation.objects.filter(
-        id=conversation_uuid
-    ).first()
+    conversation = AssistantConversation.objects.filter(id=conversation_uuid).first()
 
     if conversation is None:
         request.session.pop(CONVERSATION_ID_SESSION_KEY, None)
@@ -60,12 +58,11 @@ def get_conversation_history(request):
         )
     ]
 
+
 def save_conversation_history(request, history):
     """Enregistre la conversation dans la table dédiée."""
 
-    expires_at = timezone.now() + timezone.timedelta(
-        seconds=CONVERSATION_LIFETIME_SECONDS
-    )
+    expires_at = timezone.now() + timezone.timedelta(seconds=CONVERSATION_LIFETIME_SECONDS)
 
     conversation_id = request.session.get(CONVERSATION_ID_SESSION_KEY)
 
@@ -88,16 +85,13 @@ def save_conversation_history(request, history):
             expires_at=expires_at,
         )
 
-        request.session[CONVERSATION_ID_SESSION_KEY] = str(
-            conversation.id
-        )
+        request.session[CONVERSATION_ID_SESSION_KEY] = str(conversation.id)
 
     else:
         conversation.messages = history[-CONVERSATION_MAX_MESSAGES:]
         conversation.expires_at = expires_at
-        conversation.save(
-            update_fields=["messages", "expires_at"]
-        )
+        conversation.save(update_fields=["messages", "expires_at"])
+
 
 @never_cache
 @require_GET
@@ -113,15 +107,14 @@ def assistant_history(request):
                     "role": entry["role"],
                     "content": entry["content"],
                     "content_html": (
-                        render_assistant_markdown(entry["content"])
-                        if entry["role"] == "assistant"
-                        else None
+                        render_assistant_markdown(entry["content"]) if entry["role"] == "assistant" else None
                     ),
                 }
                 for entry in history
             ],
         }
     )
+
 
 @never_cache
 @require_POST
@@ -191,12 +184,7 @@ def assistant_chat(request):
         answer = AlbertClient().chat(messages)
     except AlbertAPIError:
         return JsonResponse(
-            {
-                "error": (
-                    "L'assistant est momentanément indisponible. "
-                    "Merci de réessayer."
-                )
-            },
+            {"error": ("L'assistant est momentanément indisponible. " "Merci de réessayer.")},
             status=503,
         )
 

@@ -17,9 +17,7 @@ class AlbertClient:
 
     def chat(self, messages):
         if not all([self.base_url, self.api_key, self.model]):
-            raise AlbertAPIError(
-                "La configuration Albert API est incomplète."
-            )
+            raise AlbertAPIError("La configuration Albert API est incomplète.")
 
         try:
             response = requests.post(
@@ -47,6 +45,4 @@ class AlbertClient:
             TypeError,
             ValueError,
         ) as exc:
-            raise AlbertAPIError(
-                "Impossible d'obtenir une réponse d'Albert API."
-            ) from exc
+            raise AlbertAPIError("Impossible d'obtenir une réponse d'Albert API.") from exc
