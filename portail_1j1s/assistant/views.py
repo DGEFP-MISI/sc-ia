@@ -10,6 +10,8 @@ from .models import AssistantConversation
 from .services.albert import AlbertAPIError, AlbertClient
 from .services.markdown import render_assistant_markdown
 
+from .conf import assistant_enabled
+
 CONVERSATION_ID_SESSION_KEY = "assistant_1j1s_conversation_id"
 
 CONVERSATION_LIFETIME_SECONDS = 30 * 60
@@ -98,6 +100,13 @@ def save_conversation_history(request, history):
 def assistant_history(request):
     """Retourne l'historique non expiré de la conversation anonyme."""
 
+    # Vérifier si le chatbot IA est activé
+    if not assistant_enabled():
+        return JsonResponse(
+            {"error": "L'assistant IA est désactivé."},
+            status=503,
+        )
+
     history = get_conversation_history(request)
 
     return JsonResponse(
@@ -120,6 +129,12 @@ def assistant_history(request):
 @require_POST
 def assistant_chat(request):
     """Reçoit une question et retourne la réponse d'Albert API."""
+
+    if not assistant_enabled():
+    return JsonResponse(
+        {"error": "L'assistant IA est désactivé."},
+        status=503,
+    )
 
     try:
         data = json.loads(request.body)

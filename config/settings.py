@@ -213,6 +213,7 @@ TEMPLATES = [
                 "sites_conformes.core.context_processors.skiplinks",
                 "sites_conformes.core.context_processors.mega_menus",
                 "sites_conformes.core.context_processors.iframe",
+                "portail_1j1s.assistant.context_processors.assistant_settings",
             ],
         },
     },
