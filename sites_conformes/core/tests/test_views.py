@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 from wagtail.models import Page
 from wagtail.test.utils import WagtailPageTestCase
@@ -354,6 +354,13 @@ class CatalogIndexPageTestCase(WagtailPageTestCase):
         )
         self.entry4.save()
 
+    def test_catalog_index_page_tags_list(self):
+        response = self.client.get(self.catalog_index_page.url + "tags/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context["sorted_tags"].keys()), ["T"])
+        self.assertEqual([t.slug for t in response.context["sorted_tags"]["T"]], ["tag-1", "tag-2"])
+
     def test_catalog_index_page_is_renderable(self):
         self.assertPageIsRenderable(self.catalog_index_page)
 
@@ -383,6 +390,20 @@ class CatalogIndexPageTestCase(WagtailPageTestCase):
         self.assertNotContains(response, "Entrée 2")
         self.assertContains(response, "Entrée 3")
         self.assertNotContains(response, "Entrée 4")
+
+    def test_single_filter_can_be_unselected(self):
+        self.catalog_index_page.filter_selection = CatalogIndexPage.SINGLE_FILTER
+        self.catalog_index_page.save()
+
+        url = self.catalog_index_page.url + "?tag=tag-1"
+        response = self.client.get(url)
+
+        self.assertEqual(response.context["current_tag"], self.tag1)
+
+        # Clicking the already-selected tag again must remove it from the URL
+        # (toggle_url_filter relies on "current_tag" to detect this), instead
+        # of re-adding it and leaving the filter/results unchanged.
+        self.assertNotContains(response, 'href="?tag=tag-1#posts-list"')
 
     def test_multiple_filter_and(self):
         self.catalog_index_page.filter_selection = CatalogIndexPage.MULTIPLE_FILTERS
@@ -421,6 +442,35 @@ class CatalogIndexPageTestCase(WagtailPageTestCase):
 
 
 class ErrorPagesTestCase(TestCase):
+    def test_403_error_page(self):
+        response = self.client.get("/403/")
+        self.assertEqual(response.status_code, 403)
+        self.assertInHTML(
+            "<title>Erreur 403 — Accès refusé — Titre du site</title>",
+            response.content.decode(),
+        )
+        self.assertNotContains(response, "fr-alert", status_code=403)
+
+    def test_403_csrf_simulated_page(self):
+        response = self.client.get("/403-csrf/")
+        self.assertEqual(response.status_code, 403)
+        self.assertInHTML(
+            "<title>Erreur 403 — Accès refusé — Titre du site</title>",
+            response.content.decode(),
+        )
+        self.assertContains(response, "fr-alert", status_code=403)
+        self.assertContains(response, "Cause de l’erreur : CSRF cookie not set.", status_code=403)
+
+    def test_403_on_real_csrf_failure(self):
+        client = Client(enforce_csrf_checks=True)
+        response = client.post("/403/")
+        self.assertEqual(response.status_code, 403)
+        self.assertInHTML(
+            "<title>Erreur 403 — Accès refusé — Titre du site</title>",
+            response.content.decode(),
+        )
+        self.assertContains(response, "CSRF cookie not set.", status_code=403)
+
     def test_404_error_page(self):
         response = self.client.get("/404/")
         self.assertEqual(response.status_code, 404)

@@ -1,4 +1,4 @@
-FROM python:3.13-bookworm
+FROM python:3.14-bookworm
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 ARG CONTAINER_PORT=8000
@@ -15,6 +15,12 @@ ENV DATABASE_URL=postgres://user:password@localhost:5432/db
 RUN set -ex \
     && addgroup --gid 1000 app \
     && adduser --uid 1000 --gid 1000 --home ${APP_DIR} --disabled-password app;
+
+# gettext provides msgfmt, needed to compile the translation files
+RUN set -ex \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends gettext \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR $APP_DIR
 
@@ -33,6 +39,7 @@ COPY --chown=app:app . .
 # version resolves and the project can be installed editable into the env.
 RUN uv sync --locked
 
+RUN uv run python manage.py compilemessages -l fr --ignore=.venv
 RUN uv run python manage.py collectstatic --no-input
 
 RUN chown 1000:1000 -R /app
