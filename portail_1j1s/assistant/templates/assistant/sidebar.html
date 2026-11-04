@@ -1,0 +1,63 @@
+<button
+    type="button"
+    class="fr-btn fr-icon-chat-3-line fr-btn--icon-left assistant-ia__trigger"
+    data-assistant-open
+    aria-controls="assistant-ia"
+>
+    Assistant IA
+</button>
+
+<aside
+    id="assistant-ia"
+    class="assistant-ia"
+    aria-labelledby="assistant-ia-title"
+    hidden
+>
+    <div class="assistant-ia__header">
+        <h2 id="assistant-ia-title" class="fr-h5 fr-mb-0">
+            Assistant 1jeune1solution
+        </h2>
+
+        <button
+            type="button"
+            class="fr-btn fr-btn--tertiary-no-outline fr-icon-close-line"
+            id="assistant-ia-close"
+            aria-label="Fermer l'assistant"
+        ></button>
+    </div>
+
+    <div
+        id="assistant-ia-messages"
+        class="assistant-ia__messages"
+        role="log"
+        aria-label="Conversation avec l'assistant"
+        aria-live="polite"
+    >
+        <p class="fr-text--sm">
+            Bonjour ! Je peux t'aider à trouver des informations
+            sur ton orientation, ta formation, ton emploi
+            ou les aides auxquelles tu pourrais avoir droit.
+        </p>
+    </div>
+
+    <form id="assistant-ia-form" class="assistant-ia__form">
+        {% csrf_token %}
+        <label for="assistant-ia-input" class="fr-label">
+            Ton message
+        </label>
+
+        <textarea
+            id="assistant-ia-input"
+            name="message"
+            class="fr-input"
+            rows="2"
+            maxlength="2000"
+            placeholder="Pose ta question..."
+            required
+        ></textarea>
+
+        <button type="submit" class="fr-btn fr-mt-2w">
+            Envoyer
+        </button>
+    </form>
+</aside>

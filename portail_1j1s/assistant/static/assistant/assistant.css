@@ -1,0 +1,142 @@
+/* Assistant IA 1jeune1solution */
+
+.assistant-ia[hidden] {
+    display: none !important;
+}
+
+.assistant-ia {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2000;
+
+    display: flex;
+    flex-direction: column;
+
+    width: min(440px, 100%);
+    height: 100dvh;
+
+    background: var(--background-default-grey);
+    color: var(--text-default-grey);
+
+    border-left: 1px solid var(--border-default-grey);
+    box-shadow: 0 0 24px rgba(0, 0, 0, 0.15);
+}
+
+.assistant-ia__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+
+    padding: 1rem;
+
+    border-bottom: 1px solid var(--border-default-grey);
+}
+
+.assistant-ia__messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+
+    padding: 1.5rem 1rem;
+}
+
+.assistant-ia__form {
+    padding: 1rem;
+
+    border-top: 1px solid var(--border-default-grey);
+    background: var(--background-default-grey);
+}
+
+.assistant-ia__form textarea {
+    resize: vertical;
+    max-height: 180px;
+}
+
+.assistant-ia__form button {
+    width: 100%;
+    justify-content: center;
+}
+
+/* Affichage mobile */
+
+@media (max-width: 767px) {
+    .assistant-ia {
+        width: 100%;
+        border-left: none;
+    }
+
+    .assistant-ia__header {
+        padding: 0.75rem 1rem;
+    }
+
+    .assistant-ia__messages {
+        padding: 1rem;
+    }
+}
+
+/* Bouton d'ouverture de l'assistant */
+
+.assistant-ia__trigger {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    z-index: 1999;
+
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Adaptation aux petits écrans */
+
+@media (max-width: 767px) {
+    .assistant-ia__trigger {
+        right: 1rem;
+        bottom: 1rem;
+    }
+}
+
+/* Empêcher les réponses de déborder de la sidebar */
+#assistant-ia-messages {
+    min-width: 0;
+    overflow-x: hidden;
+}
+
+#assistant-ia-messages > * {
+    overflow-wrap: anywhere;
+}
+
+/* Adapter les tableaux générés par Albert */
+#assistant-ia-messages table {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+}
+
+#assistant-ia-messages th,
+#assistant-ia-messages td {
+    overflow-wrap: anywhere;
+    word-break: normal;
+    padding: 0.5rem;
+    vertical-align: top;
+}
+
+/* Réserver une colonne permanente à l'assistant sur ordinateur */
+
+@media (min-width: 992px) {
+    body:has(.assistant-ia:not([hidden])) {
+        padding-right: 440px;
+    }
+
+    .assistant-ia {
+        width: 440px;
+        box-shadow: none;
+    }
+
+    .assistant-ia__trigger {
+        display: none;
+    }
+}

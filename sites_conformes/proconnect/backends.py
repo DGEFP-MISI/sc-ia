@@ -7,7 +7,6 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.core.exceptions import SuspiciousOperation
-from django.utils.crypto import get_random_string
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext_lazy as _
 from mozilla_django_oidc.auth import (
@@ -47,11 +46,12 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
         Returns:
         - dict: User details dictionary obtained from the OpenID Connect user endpoint.
         """
+        timeout = self.get_settings("OIDC_TIMEOUT", 5)
         user_response = requests.get(
             self.OIDC_OP_USER_ENDPOINT,
             headers={"Authorization": f"Bearer {access_token}"},
             verify=self.get_settings("OIDC_VERIFY_SSL", True),
-            timeout=self.get_settings("OIDC_TIMEOUT", None),
+            timeout=timeout,
             proxies=self.get_settings("OIDC_PROXY", None),
         )
         user_response.raise_for_status()
@@ -128,7 +128,10 @@ class OIDCAuthenticationBackend(MozillaOIDCAuthenticationBackend):
         """
         The actual creation of the user
         """
-        user = User.objects.create(password=get_random_string(42), **user_properties)
+        # Users created through ProConnect authenticate with it only, they have no local password
+        user = User(**user_properties)
+        user.set_unusable_password()
+        user.save()
         siret = user_info.get("siret", "")
         _user_claims = UserOIDC.objects.create(user=user, sub=sub, siret=siret)
 

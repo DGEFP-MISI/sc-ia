@@ -1,0 +1,7 @@
+{
+  "jobs": [
+    {
+      "command": "*/10 * * * * python manage.py purge_assistant_conversations"
+    }
+  ]
+}

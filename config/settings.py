@@ -43,6 +43,14 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = getenv_bool("DEBUG", False)
 
+# Protection des cookies de session et CSRF en production.
+SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+
+CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SAMESITE = "Lax"
+
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,.localhost").replace(" ", "").split(",")
 USE_X_FORWARDED_HOST = getenv_bool("USE_X_FORWARDED_HOST", False)
 
@@ -63,6 +71,12 @@ SF_USE_WHITENOISE = getenv_bool("SF_USE_WHITENOISE", False)
 # /!\ Not recommended beyond 1 GB of media — prefer S3 for larger volumes.
 # Selection order: S3_HOST wins if set, then SF_USE_DB_STORAGE, then filesystem (default)
 SF_USE_DB_STORAGE = getenv_bool("SF_USE_DB_STORAGE", False)
+
+# Ask search engines not to index anything served by this instance (disabled by default)
+SF_NOINDEX = getenv_bool("SF_NOINDEX", False)
+
+# Let browsers and the CDN cache anonymous pages for this many seconds (0 = disabled, default)
+SF_PUBLIC_CACHE_MAX_AGE = int(os.getenv("SF_PUBLIC_CACHE_MAX_AGE", 0))
 
 INTERNAL_IPS = [
     "127.0.0.1",
@@ -103,6 +117,8 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "widget_tweaks",
     "dsfr",
+    "portail_1j1s.assistant.apps.AssistantConfig",
+    "sites_conformes.customimages",
     "sites_conformes.core",
     "sites_conformes.blog",
     "sites_conformes.events",
@@ -111,6 +127,9 @@ INSTALLED_APPS = [
     "wagtail_honeypot",
     "sites_conformes.dashboard",
     "wagtail.admin",
+    "wagtail_2fa",
+    "django_otp",
+    "django_otp.plugins.otp_totp",
 ]
 
 if SF_USE_DB_STORAGE:
@@ -130,13 +149,19 @@ if not TESTING and DEBUG and "localhost" in HOST_URL:
 # Middleware definition
 
 MIDDLEWARE = [
+    # Must stay first so that it also wraps WhiteNoise, appended below
+    "sites_conformes.core.middleware.NoIndexMiddleware",
+    # Outside of the session and CSRF middlewares, to see the cookies they set
+    "sites_conformes.core.middleware.PublicCacheMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "sites_conformes.dashboard.middleware.VerifyUserStaticFilesMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "sites_conformes.core.middleware.IframeMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "wagtail.contrib.redirects.middleware.RedirectMiddleware",
 ]
@@ -187,6 +212,8 @@ TEMPLATES = [
                 "wagtailmenus.context_processors.wagtailmenus",
                 "sites_conformes.core.context_processors.skiplinks",
                 "sites_conformes.core.context_processors.mega_menus",
+                "sites_conformes.core.context_processors.iframe",
+                "portail_1j1s.assistant.context_processors.assistant_settings",
             ],
         },
     },
@@ -341,7 +368,7 @@ if FORCE_SCRIPT_NAME and not STATIC_URL.startswith(FORCE_SCRIPT_NAME):
 
 
 # Allow Django to serve statics even in production if needed
-SF_PROD_SERVE_STATIC = True if os.getenv("SF_PROD_SERVE_STATIC", False) in ["1", "True"] else False
+SF_PROD_SERVE_STATIC = getenv_bool("SF_PROD_SERVE_STATIC", False)
 if SF_PROD_SERVE_STATIC:
     import mimetypes
 
@@ -382,7 +409,7 @@ LOGOUT_URL = f"{FORCE_SCRIPT_NAME}/{WAGTAILADMIN_PATH}logout/"
 
 WAGTAIL_FRONTEND_LOGIN_URL = LOGIN_URL
 
-WAGTAIL_PASSWORD_REQUIRED_TEMPLATE = "sites_conformes_core/password_required.html"
+WAGTAIL_PASSWORD_REQUIRED_TEMPLATE = "sites_conformes_core/password_required.html"  # nosec B105
 
 # Disable Gravatar service
 WAGTAIL_GRAVATAR_PROVIDER_URL = None
@@ -404,6 +431,20 @@ WAGTAIL_RICHTEXT_FIELD_FEATURES = [
 
 WAGTAILEMBEDS_RESPONSIVE_HTML = True
 WAGTAIL_MODERATION_ENABLED = False
+
+# Settings for the notifications panel of the dashboard admin
+NOTIFICATIONS_FILE_URL = os.getenv(
+    "NOTIFICATIONS_FILE_URL",
+    "https://raw.githubusercontent.com/numerique-gouv/sites-conformes/refs/heads/main/notifications.json",
+)
+# GitHub API endpoint used to detect the latest published version (overridable for forks)
+LATEST_RELEASE_URL = os.getenv(
+    "LATEST_RELEASE_URL", "https://api.github.com/repos/numerique-gouv/sites-conformes/releases/latest"
+)
+# Human-facing releases page linked from the "new version available" notification (overridable for forks)
+RELEASES_URL = os.getenv("RELEASES_URL", "https://github.com/numerique-gouv/sites-conformes/releases")
+ADVERTISE_LATEST_VERSION = getenv_bool("ADVERTISE_LATEST_VERSION", True)
+WAGTAIL_ENABLE_UPDATE_CHECK = False  # Disable Wagtail's own update check, we use our own
 
 # Wagtailmenus: Obsolete, to be removed in a future version (replaced by "sites_conformes.menus")
 WAGTAILMENUS_FLAT_MENUS_HANDLE_CHOICES = (
@@ -431,11 +472,15 @@ WAGTAILMENUS_MAIN_MENUS_EDITABLE_IN_WAGTAILADMIN = False
 
 WAGTAILDOCS_MAX_UPLOAD_SIZE = int(os.getenv("WAGTAILDOCS_MAX_UPLOAD_SIZE", 10 * 1024 * 1024))  # 10MB
 
+WAGTAILIMAGES_IMAGE_MODEL = "sites_conformes_customimages.CustomImage"
 WAGTAILIMAGES_EXTENSIONS = ["gif", "jpg", "jpeg", "png", "webp", "svg"]
-SF_SCHEME_DEPENDENT_SVGS = True if os.getenv("SF_SCHEME_DEPENDENT_SVGS", False) in ["1", "True"] else False
+WAGTAILDOCS_EXTENSIONS = ["pdf", "docx", "odt", "xlsx", "ods", "pptx", "odp", "csv", "txt"]
+SF_SCHEME_DEPENDENT_SVGS = getenv_bool("SF_SCHEME_DEPENDENT_SVGS", False)
 
 # Allows for complex Streamfields without completely removing checks
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv("DATA_UPLOAD_MAX_MEMORY_SIZE", 10 * 1024 * 1024))  # 10MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv("FILE_UPLOAD_MAX_MEMORY_SIZE", 2.5 * 1024 * 1024))  # 2.5MB
 
 # Email settings
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "")
@@ -452,11 +497,19 @@ if DEFAULT_FROM_EMAIL:
     EMAIL_SSL_KEYFILE = os.getenv("EMAIL_SSL_KEYFILE", None)
     EMAIL_SSL_CERTFILE = os.getenv("EMAIL_SSL_CERTFILE", None)
 
-WAGTAIL_PASSWORD_RESET_ENABLED = os.getenv("WAGTAIL_PASSWORD_RESET_ENABLED", False)
+# Forms
+WAGTAIL_PASSWORD_RESET_ENABLED = getenv_bool("WAGTAIL_PASSWORD_RESET_ENABLED", False)
+WAGTAILADMIN_USER_PASSWORD_RESET_FORM = "sites_conformes.dashboard.forms.DsfrPasswordResetForm"  # nosec B105
+DSFR_MARK_OPTIONAL_FIELDS = getenv_bool("DSFR_MARK_OPTIONAL_FIELDS", True)
+
+# (Optional) 2FA settings
+# See https://wagtail-2fa.readthedocs.io/en/stable/
+WAGTAIL_2FA_REQUIRED = getenv_bool("WAGTAIL_2FA_REQUIRED", False)
+WAGTAIL_2FA_OTP_TOTP_NAME = os.getenv("WAGTAIL_2FA_OTP_TOTP_NAME", WAGTAIL_SITE_NAME)
 
 # (Optional) ProConnect settings
-PROCONNECT_ACTIVATED = True if os.getenv("PROCONNECT_ACTIVATED", False) in ["1", "True"] else False
-OIDC_CREATE_USER = True if os.getenv("PROCONNECT_CREATE_USER", "True") in ["1", "True"] else False
+PROCONNECT_ACTIVATED = getenv_bool("PROCONNECT_ACTIVATED", False)
+OIDC_CREATE_USER = getenv_bool("PROCONNECT_CREATE_USER", True)
 OIDC_RP_CLIENT_ID = os.getenv("PROCONNECT_CLIENT_ID", "")
 OIDC_RP_CLIENT_SECRET = os.getenv("PROCONNECT_CLIENT_SECRET", "")
 OIDC_RP_SCOPES = os.getenv("PROCONNECT_SCOPES", "openid given_name usual_name email siret uid")
@@ -474,7 +527,7 @@ OIDC_AUTH_REQUEST_EXTRA_PARAMS = {"acr_values": "eidas1"}
 OIDC_REDIRECT_ALLOWED_HOSTS = ALLOWED_HOSTS
 PROCONNECT_USER_CREATION_FILTER = os.getenv("PROCONNECT_USER_CREATION_FILTER", None)
 LASUITE_DOMAINE_API_KEY = os.getenv("LASUITE_DOMAINE_API_KEY", None)
-SF_DISABLE_LOCAL_LOGIN = True if os.getenv("SF_DISABLE_LOCAL_LOGIN") in ["1", "True"] else False
+SF_DISABLE_LOCAL_LOGIN = getenv_bool("SF_DISABLE_LOCAL_LOGIN", False)
 
 LOGIN_REDIRECT_URL = f"{FORCE_SCRIPT_NAME}/"
 LOGOUT_REDIRECT_URL = f"{FORCE_SCRIPT_NAME}/"
@@ -493,6 +546,7 @@ if PROCONNECT_ACTIVATED:
     LOGOUT_URL = f"{FORCE_SCRIPT_NAME}/oidc/logout/"
 
 # CSRF
+CSRF_FAILURE_VIEW = "sites_conformes.core.views.csrf_failure"
 CSRF_TRUSTED_ORIGINS = []
 for host in ALLOWED_HOSTS:
     if host not in ["127.0.0.1", "localhost", ".localhost"]:
@@ -509,17 +563,29 @@ if len(trusted_origins):
 
 # Disable the integrity checksums by default.
 # They can clash with Whitenoise and are normally not useful as we serve the statics from a trusted source
-DSFR_USE_INTEGRITY_CHECKSUMS = True if os.getenv("DSFR_USE_INTEGRITY_CHECKSUMS") in ["1", "True"] else False
+DSFR_USE_INTEGRITY_CHECKSUMS = getenv_bool("DSFR_USE_INTEGRITY_CHECKSUMS", False)
 
-SF_DISABLE_TUTORIALS = True if os.getenv("SF_DISABLE_TUTORIALS") in ["1", "True"] else False
+SF_DISABLE_TUTORIALS = getenv_bool("SF_DISABLE_TUTORIALS", False)
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
+# Legacy clickjacking fallback for browsers without CSP frame-ancestors
+# support. Browsers that support frame-ancestors ignore X-Frame-Options,
+# so this does not conflict with the per-site policy emitted by
+# sites_conformes.core.middleware.IframeMiddleware.
+X_FRAME_OPTIONS = "SAMEORIGIN"
 
+# Sentry config
 if sentry_dsn := os.getenv("SENTRY_DSN"):
     import sentry_sdk  # noqa: E402
 
+    # Share of requests traced for performance monitoring; tracing is
+    # disabled while unset.
+    traces_sample_rate = os.getenv("SENTRY_TRACES_SAMPLE_RATE")
     sentry_sdk.init(
         dsn=sentry_dsn,
-        send_default_pii=True,
+        send_default_pii=getenv_bool("SENTRY_SEND_DEFAULT_PII", False),
         environment=os.getenv("SENTRY_ENVIRONMENT", "production"),
+        traces_sample_rate=float(traces_sample_rate) if traces_sample_rate else None,
     )
+
+SENTRY_USE_DEBUG_URL = getenv_bool("SENTRY_USE_DEBUG_URL", False)

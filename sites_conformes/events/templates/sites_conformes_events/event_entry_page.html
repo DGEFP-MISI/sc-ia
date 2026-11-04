@@ -52,15 +52,7 @@
       <p>
         <strong>
           <span class="fr-icon-calendar-event-fill click-to-copy" aria-hidden="true"></span>
-          {% if page.event_date_start.date == page.event_date_end.date %}
-            {{ page.event_date_start.date }}
-          {% elif page.event_date_start.year == page.event_date_end.year and page.event_date_start.month == page.event_date_end.month %}
-            {{ page.event_date_start.day }} – {{ page.event_date_end.date }}
-          {% elif page.event_date_start.year == page.event_date_end.year %}
-            {{ page.event_date_start|date:"j F" }} – {{ page.event_date_end|date:"j F Y" }}
-          {% else %}
-            {{ page.event_date_start.date }} – {{ page.event_date_end.date }}
-          {% endif %}
+          {% event_date_range page.event_date_start page.event_date_end %}
         </strong>
         {% if categories %}
           |
@@ -104,7 +96,7 @@
           <h2 class="fr-card__title">{{ page.title }}</h2>
           <ul class="fr-card__desc">
             <li>
-              <strong>{% translate "Date:" %}</strong> {{ page.event_date_start }} - {{ page.event_date_end }}
+              <strong>{% translate "Date:" %}</strong>{{ page.event_date_start }} - {{ page.event_date_end }}
             </li>
             <li>
               <strong>{% translate "Location:" %}</strong> {{ page.location }}
@@ -116,21 +108,27 @@
             {% endif %}
           </ul>
 
-          <div class="fr-card__start">
-            <ul class="fr-tags-group">
-              {% for tag in page.tags.all|dictsort:"slug" %}
-                <a class="fr-tag"
-                   target="_self"
-                   href="{% pageurl page.get_parent %}?tag={{ tag.slug }}">{{ tag }}</a>
-              {% endfor %}
-            </ul>
-          </div>
+          {% with tags=page.tags.all|dictsort:"slug" %}
+            {% if tags %}
+              <div class="fr-card__start">
+                <ul class="fr-tags-group">
+                  {% for tag in tags %}
+                    <li>
+                      <a class="fr-tag"
+                         target="_self"
+                         href="{% pageurl page.get_parent %}?tag={{ tag.slug }}">{{ tag }}</a>
+                    </li>
+                  {% endfor %}
+                </ul>
+              </div>
+            {% endif %}
+          {% endwith %}
         </div>
 
         <div class="fr-card__footer">
           <div class="fr-btns-group fr-btns-group--inline-lg">
             <a href="{% routablepageurl page 'ical_view' %}"
-               class="fr-btn fr-btn--secondary">{% translate "Add to your calendar (iCal)" %}</a>
+               class="fr-btn fr-btn--secondary">{% translate "Download event (iCal)" %}</a>
           </div>
         </div>
       </div>
@@ -139,7 +137,7 @@
         <div class="fr-card__img">
           {% if page.cover %}
             {% image page.cover width-450 as header_image %}
-            <img class="fr-responsive-img" src="{{ header_image.url}}" alt="" />
+            <img class="fr-responsive-img" src="{{ header_image.url }}" alt="" />
           {% else %}
             <img class="fr-responsive-img"
                  src="{% static 'dsfr/dist/artwork/pictograms/digital/calendar.svg' %}"

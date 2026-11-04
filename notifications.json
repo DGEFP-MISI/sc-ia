@@ -1,0 +1,37 @@
+{
+    "items": [
+        {
+            "type": "info",
+            "title": "Exemple de nouveauté -- Template -- à ne pas supprimer",
+            "description": "Description courte de la fonctionnalité. -- template, date de fin à garder au passé.",
+            "more_info_link": "https://sites.beta.gouv.fr/",
+            "start_date": "2026-03-28",
+            "end_date": "2016-04-01"
+        },
+        {
+            "type": "alert",
+            "title": "Exemple d'alerte -- Template -- à ne pas supprimer",
+            "description": "Description courte de l'alerte. -- template, date de fin à garder au passé.",
+            "more_info_link": "https://github.com/numerique-gouv/sites-faciles/releases",
+            "start_date": "",
+            "end_date": "2016-04-30"
+        },
+        {
+            "type": "warning",
+            "title": "Exemple d'avertissement -- Template -- à ne pas supprimer",
+            "description": "Description courte de l'avertissement. -- template, date de fin à garder au passé.",
+            "more_info_link": "",
+            "start_date": "2026-03-28",
+            "end_date": "2016-04-30"
+        },
+        {
+            "type": "info",
+            "title": "Renforcez la sécurité de votre compte",
+            "description": "Vous pouvez désormais activer la double authentification pour mieux protéger l'accès à votre compte. Cette fonctionnalité est disponible à partir de la version 4.2. Si vous ne la trouvez pas, pensez à effectuer une mise à jour de Sites Conformes.",
+            "more_info_link": "https://sites.beta.gouv.fr/documentation/guide-dutilisation/s%C3%A9curiser-son-compte-avec-lauthentification-%C3%A0-deux-facteurs/",
+            "start_date": "2026-09-17",
+            "end_date": "2026-10-17"
+        }
+    ]
+}
+
