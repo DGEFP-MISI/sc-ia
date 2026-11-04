@@ -15,6 +15,23 @@ concurrency:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    env:
+      DJANGO_SETTINGS_MODULE: config.settings_test
+      PYTHONPATH: .
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: dju
+          POSTGRES_PASSWORD: djpwd
+          POSTGRES_DB: djdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dju -d djdb"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Créer un jeton temporaire de la GitHub App
         id: app-token
@@ -30,7 +47,7 @@ jobs:
       - name: Récupérer le dépôt local
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: recette
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
 
@@ -80,14 +97,40 @@ jobs:
               echo
               echo "Cette PR est un **signalement de conflit**, pas une fusion prête à intégrer."
               echo "Résoudre manuellement les conflits dans une branche de mise à jour,"
-              echo "puis fusionner cette branche dans main. Ne pas fusionner cette PR de signalement."
+              echo "puis fusionner cette branche dans recette. Ne pas fusionner cette PR de signalement."
             } > .github/upstream-sync-conflicts.md
             echo "outcome=conflict" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Mettre à jour main en l'absence de conflit
+      - name: Installer uv et Python
         if: steps.merge.outputs.outcome == 'merged'
-        run: git push origin HEAD:main
+        uses: astral-sh/setup-uv@v10.3.0
+        with:
+          python-version: "3.14"
+
+      - name: Installer les dépendances (une relance si nécessaire)
+        if: steps.merge.outputs.outcome == 'merged'
+        run: |
+          cp .env.test .env
+          uv sync --no-group dev || { sleep 15; uv sync --no-group dev; }
+
+      - name: Contrôles bloquants avant recette
+        if: steps.merge.outputs.outcome == 'merged'
+        run: |
+          uv run python -m compileall -q config sites_conformes
+          uv run python manage.py check
+          uv run django-admin makemigrations --check --dry-run --noinput
+          uv run python manage.py test
+
+      - name: Mettre à jour recette après validation
+        if: steps.merge.outputs.outcome == 'merged'
+        run: |
+          git fetch origin recette
+          test "$(git rev-parse origin/recette)" = "${{ github.sha }}" || {
+            echo "::error::La branche recette a évolué pendant les tests."
+            exit 1
+          }
+          git push origin HEAD:recette
 
       - name: Créer ou actualiser une PR de signalement des conflits
         if: steps.merge.outputs.outcome == 'conflict'
@@ -95,12 +138,12 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token }}
           branch: automation/upstream-conflicts
-          base: main
+          base: recette
           title: "chore: conflits lors de la synchronisation du dépôt officiel"
           body: |
             La mise à jour quotidienne a rencontré un ou plusieurs conflits Git.
 
-            **Aucun fichier source n'a été modifié dans main.**
+            **Aucun fichier source n'a été modifié dans recette.**
             Consulter `.github/upstream-sync-conflicts.md` pour la liste des fichiers.
 
             Cette PR est un signalement et **ne doit pas être fusionnée telle quelle**.
