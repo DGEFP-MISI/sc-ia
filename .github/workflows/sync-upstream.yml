@@ -52,9 +52,11 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Récupérer le dépôt officiel
+        id: upstream
         run: |
           git remote add upstream https://github.com/numerique-gouv/sites-conformes.git
           git fetch upstream main
+          echo "base_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
           git config user.name "sc-ia-upstream-sync[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
@@ -109,28 +111,49 @@ jobs:
           python-version: "3.14"
 
       - name: Installer les dépendances (une relance si nécessaire)
+        id: dependencies
+        continue-on-error: true
         if: steps.merge.outputs.outcome == 'merged'
         run: |
           cp .env.test .env
           uv sync --no-group dev || { sleep 15; uv sync --no-group dev; }
 
       - name: Contrôles bloquants avant recette
-        if: steps.merge.outputs.outcome == 'merged'
+        if: steps.merge.outputs.outcome == 'merged' && steps.dependencies.outcome == 'success'
+        id: checks
+        continue-on-error: true
         run: |
+          set -euo pipefail
           uv run python -m compileall -q config sites_conformes
           uv run python manage.py check
           uv run django-admin makemigrations --check --dry-run --noinput
-          uv run python manage.py test
+          uv run python manage.py test --settings config.settings_test
 
       - name: Mettre à jour recette après validation
-        if: steps.merge.outputs.outcome == 'merged'
+        if: steps.merge.outputs.outcome == 'merged' && steps.dependencies.outcome == 'success' && steps.checks.outcome == 'success'
         run: |
           git fetch origin recette
-          test "$(git rev-parse origin/recette)" = "${{ github.sha }}" || {
+          test "$(git rev-parse origin/recette)" = "${{ steps.upstream.outputs.base_sha }}" || {
             echo "::error::La branche recette a évolué pendant les tests."
             exit 1
           }
           git push origin HEAD:recette
+
+      - name: Proposer les évolutions officielles si les tests échouent
+        if: steps.merge.outputs.outcome == 'merged' && (steps.dependencies.outcome == 'failure' || steps.checks.outcome == 'failure')
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push --force origin HEAD:refs/heads/automation/upstream-review
+          if ! gh pr view automation/upstream-review --json number >/dev/null 2>&1; then
+            gh pr create --base recette --head automation/upstream-review \
+              --title "chore: mise à jour officielle à examiner (tests en échec)" \
+              --body "La fusion Git est possible, mais les contrôles bloquants ont échoué. Aucun déploiement en recette. Examiner les logs du workflow de synchronisation, corriger si nécessaire, puis valider manuellement cette PR."
+          else
+            gh pr comment automation/upstream-review --body "Nouvelle tentative de synchronisation : contrôles en échec. Consulter les logs du workflow. Aucun déploiement en recette."
+          fi
 
       - name: Créer ou actualiser une PR de signalement des conflits
         if: steps.merge.outputs.outcome == 'conflict'
