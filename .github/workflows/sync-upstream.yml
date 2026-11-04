@@ -1,0 +1,68 @@
+name: Synchronisation du dépôt officiel
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Créer un jeton temporaire de la GitHub App
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.UPSTREAM_SYNC_APP_ID }}
+          private-key: ${{ secrets.UPSTREAM_SYNC_APP_PRIVATE_KEY }}
+          owner: DGEFP-MISI
+          repositories: sc-ia
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Récupérer le dépôt local
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: true
+
+      - name: Récupérer la branche officielle
+        run: |
+          git remote add upstream https://github.com/numerique-gouv/sites-conformes.git
+          git fetch upstream main
+
+      - name: Préparer les changements officiels
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Une fusion squash permet de proposer les changements dans une PR,
+          # sans modifier directement main. En cas de conflit, le job échoue.
+          git merge --squash upstream/main
+
+      - name: Ouvrir ou actualiser la PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: automation/sync-upstream
+          base: main
+          delete-branch: true
+          title: "chore: synchroniser numerique-gouv/sites-conformes"
+          body: |
+            Synchronisation quotidienne avec le dépôt officiel
+            [numerique-gouv/sites-conformes](https://github.com/numerique-gouv/sites-conformes).
+
+            - Vérifier les modifications et les éventuelles régressions.
+            - Lancer les contrôles CI et tester en recette Scalingo.
+            - Fusionner manuellement après validation.
+
+            Aucun déploiement ni fusion automatique.
+          commit-message: "chore: synchroniser le dépôt officiel"
+          add-paths: "."
