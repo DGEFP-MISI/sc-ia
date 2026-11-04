@@ -30,39 +30,81 @@ jobs:
       - name: Récupérer le dépôt local
         uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
-          persist-credentials: true
 
-      - name: Récupérer la branche officielle
+      - name: Récupérer le dépôt officiel
         run: |
           git remote add upstream https://github.com/numerique-gouv/sites-conformes.git
           git fetch upstream main
-
-      - name: Préparer les changements officiels
-        run: |
-          git config user.name "github-actions[bot]"
+          git config user.name "sc-ia-upstream-sync[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          # Une fusion squash permet de proposer les changements dans une PR,
-          # sans modifier directement main. En cas de conflit, le job échoue.
-          git merge --squash upstream/main
 
-      - name: Ouvrir ou actualiser la PR
+      - name: Vérifier et préparer la fusion
+        id: merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "outcome=up-to-date" >> "$GITHUB_OUTPUT"
+            echo "Aucune nouvelle évolution officielle."
+            exit 0
+          fi
+
+          if git merge --no-ff --no-commit upstream/main; then
+            git commit -m "chore: intégrer les évolutions de numerique-gouv/sites-conformes"
+            echo "outcome=merged" >> "$GITHUB_OUTPUT"
+          else
+            mkdir -p .github
+            conflicts="$(git diff --name-only --diff-filter=U)"
+            if [ -z "$conflicts" ]; then
+              echo "::error::Échec de fusion sans fichiers conflictuels identifiés."
+              exit 1
+            fi
+            git merge --abort
+            {
+              echo "# Conflits de synchronisation avec le dépôt officiel"
+              echo
+              echo "Une fusion automatique a été refusée pour préserver les adaptations SC-IA."
+              echo
+              echo "- Dépôt officiel : numerique-gouv/sites-conformes"
+              echo "- Révision officielle : $(git rev-parse upstream/main)"
+              echo "- Révision SC-IA : $(git rev-parse HEAD)"
+              echo
+              echo "## Fichiers en conflit"
+              echo
+              while IFS= read -r file; do
+                printf -- '- `%s`\n' "$file"
+              done <<< "$conflicts"
+              echo
+              echo "Cette PR est un **signalement de conflit**, pas une fusion prête à intégrer."
+              echo "Résoudre manuellement les conflits dans une branche de mise à jour,"
+              echo "puis fusionner cette branche dans main. Ne pas fusionner cette PR de signalement."
+            } > .github/upstream-sync-conflicts.md
+            echo "outcome=conflict" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Mettre à jour main en l'absence de conflit
+        if: steps.merge.outputs.outcome == 'merged'
+        run: git push origin HEAD:main
+
+      - name: Créer ou actualiser une PR de signalement des conflits
+        if: steps.merge.outputs.outcome == 'conflict'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ steps.app-token.outputs.token }}
-          branch: automation/sync-upstream
+          branch: automation/upstream-conflicts
           base: main
-          delete-branch: true
-          title: "chore: synchroniser numerique-gouv/sites-conformes"
+          title: "chore: conflits lors de la synchronisation du dépôt officiel"
           body: |
-            Synchronisation quotidienne avec le dépôt officiel
-            [numerique-gouv/sites-conformes](https://github.com/numerique-gouv/sites-conformes).
+            La mise à jour quotidienne a rencontré un ou plusieurs conflits Git.
 
-            - Vérifier les modifications et les éventuelles régressions.
-            - Lancer les contrôles CI et tester en recette Scalingo.
-            - Fusionner manuellement après validation.
+            **Aucun fichier source n'a été modifié dans main.**
+            Consulter `.github/upstream-sync-conflicts.md` pour la liste des fichiers.
 
-            Aucun déploiement ni fusion automatique.
-          commit-message: "chore: synchroniser le dépôt officiel"
-          add-paths: "."
+            Cette PR est un signalement et **ne doit pas être fusionnée telle quelle**.
+            Préparer une fusion manuelle des évolutions officielles en conservant les personnalisations.
+          commit-message: "chore: signaler les conflits de synchronisation"
+          add-paths: ".github/upstream-sync-conflicts.md"
+          delete-branch: false
