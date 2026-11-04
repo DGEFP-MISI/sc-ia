@@ -89,8 +89,8 @@ jobs:
             if [ -n "$conflicts" ]; then
               echo "### Conflits résolus provisoirement"
               echo
-              echo "Les fichiers suivants ont conservé la version de recette pour les zones conflictuelles."
-              echo "**Vérifier et corriger ces fichiers avant de fusionner la PR :**"
+              echo "Les fichiers suivants ont conservé intégralement la version de recette comme résolution provisoire. Certaines évolutions officielles de ces fichiers ne figurent donc pas dans le diff."
+              echo "**Comparer ces fichiers avec leur version officielle et réintégrer les changements souhaités avant de fusionner :**"
               echo
               while IFS= read -r file; do
                 [ -n "$file" ] && printf -- '- \`%s\`\n' "$file"
