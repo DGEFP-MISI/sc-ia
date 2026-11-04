@@ -155,6 +155,12 @@ jobs:
             gh pr comment automation/upstream-review --body "Nouvelle tentative de synchronisation : contrôles en échec. Consulter les logs du workflow. Aucun déploiement en recette."
           fi
 
+      - name: Marquer la synchronisation en échec après signalement
+        if: steps.merge.outputs.outcome == 'merged' && (steps.dependencies.outcome == 'failure' || steps.checks.outcome == 'failure')
+        run: |
+          echo "::error::Contrôles bloquants en échec : recette inchangée, PR de diagnostic créée ou actualisée."
+          exit 1
+
       - name: Créer ou actualiser une PR de signalement des conflits
         if: steps.merge.outputs.outcome == 'conflict'
         uses: peter-evans/create-pull-request@v7
