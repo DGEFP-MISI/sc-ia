@@ -10,6 +10,6 @@
     "dotenv-expand": "^11.0.7"
   },
   "dependencies": {
-    "tarteaucitronjs": "^1.33.0"
+    "tarteaucitronjs": "1.37.0"
   }
 }
