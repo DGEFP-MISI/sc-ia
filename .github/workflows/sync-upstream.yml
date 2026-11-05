@@ -112,7 +112,7 @@ jobs:
             if [ -n "$conflicts" ]; then
               echo "### Conflits à examiner avant fusion"
               echo
-              echo "Les fichiers suivants ont conservé la version de recette. Leurs différences avec le dépôt officiel sont dans le fichier `.github/upstream-conflict-review.md`, visible dans **Files changed**."
+              echo "Les fichiers suivants ont conservé la version de recette. Leurs différences avec le dépôt officiel sont dans le fichier \`.github/upstream-conflict-review.md\`, visible dans **Files changed**."
               echo "**Comparer ces fichiers avec leur version officielle et réintégrer les changements souhaités avant de fusionner :**"
               echo
               while IFS= read -r file; do
@@ -150,9 +150,16 @@ jobs:
               --title "chore: examiner les évolutions du dépôt officiel" \
               --body-file "$RUNNER_TEMP/upstream-pr-body.md" "${draft_args[@]}"; then
               echo "::warning::Échec de création avec la GitHub App ; essai avec GITHUB_TOKEN."
-              GH_TOKEN="$GH_FALLBACK_TOKEN" gh pr create --base recette --head "$BRANCH" \
+              if ! GH_TOKEN="$GH_FALLBACK_TOKEN" gh pr create --base recette --head "$BRANCH" \
                 --title "chore: examiner les évolutions du dépôt officiel" \
-                --body-file "$RUNNER_TEMP/upstream-pr-body.md" "${draft_args[@]}"
+                --body-file "$RUNNER_TEMP/upstream-pr-body.md" "${draft_args[@]}"; then
+                echo "::warning::PR non créée : les deux identités GitHub n'ont pas l'autorisation createPullRequest."
+                echo "Activer l'option Settings > Actions > General > Workflow permissions > Allow GitHub Actions to create and approve pull requests, ou faire autoriser la GitHub App par l'organisation."
+                echo "Branche de proposition conservée : $BRANCH"
+                echo "## PR à créer manuellement" >> "$GITHUB_STEP_SUMMARY"
+                echo "La branche \`$BRANCH\` est prête. Les deux jetons ont échoué à créer la PR." >> "$GITHUB_STEP_SUMMARY"
+                echo "[Ouvrir la comparaison et créer une PR](https://github.com/$GITHUB_REPOSITORY/compare/recette...$BRANCH?expand=1)" >> "$GITHUB_STEP_SUMMARY"
+              fi
             fi
           else
             echo "Une PR de revue est déjà ouverte pour $BRANCH."
