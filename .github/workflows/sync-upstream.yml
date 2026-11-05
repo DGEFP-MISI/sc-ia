@@ -132,7 +132,6 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           BRANCH: ${{ steps.prepare.outputs.branch }}
           HAS_CONFLICTS: ${{ steps.prepare.outputs.has_conflicts }}
-          GH_FALLBACK_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -143,24 +142,30 @@ jobs:
             git push origin "HEAD:refs/heads/$BRANCH"
           fi
 
-          if gh pr list --base recette --head "$BRANCH" --state open --json number --jq 'length' | grep -qx '0'; then
-            draft_args=()
-            if [ "$HAS_CONFLICTS" = "true" ]; then draft_args+=(--draft); fi
-            if ! gh pr create --base recette --head "$BRANCH" \
-              --title "chore: examiner les évolutions du dépôt officiel" \
-              --body-file "$RUNNER_TEMP/upstream-pr-body.md" "${draft_args[@]}"; then
-              echo "::warning::Échec de création avec la GitHub App ; essai avec GITHUB_TOKEN."
-              if ! GH_TOKEN="$GH_FALLBACK_TOKEN" gh pr create --base recette --head "$BRANCH" \
-                --title "chore: examiner les évolutions du dépôt officiel" \
-                --body-file "$RUNNER_TEMP/upstream-pr-body.md" "${draft_args[@]}"; then
-                echo "::warning::PR non créée : les deux identités GitHub n'ont pas l'autorisation createPullRequest."
-                echo "Activer l'option Settings > Actions > General > Workflow permissions > Allow GitHub Actions to create and approve pull requests, ou faire autoriser la GitHub App par l'organisation."
-                echo "Branche de proposition conservée : $BRANCH"
-                echo "## PR à créer manuellement" >> "$GITHUB_STEP_SUMMARY"
-                echo "La branche \`$BRANCH\` est prête. Les deux jetons ont échoué à créer la PR." >> "$GITHUB_STEP_SUMMARY"
-                echo "[Ouvrir la comparaison et créer une PR](https://github.com/$GITHUB_REPOSITORY/compare/recette...$BRANCH?expand=1)" >> "$GITHUB_STEP_SUMMARY"
-              fi
-            fi
+          # API REST : utiliser uniquement le jeton de la GitHub App.
+          # Ne pas créer de doublon si une PR existe déjà.
+          existing="$(gh api --method GET "repos/$GITHUB_REPOSITORY/pulls" \
+            -f state=open -f base=recette -f head="$GITHUB_REPOSITORY_OWNER:$BRANCH" \
+            --jq '.[0].number // empty')" || exit 1
+          if [ -n "$existing" ]; then
+            echo "Une PR de revue existe déjà : #$existing"
+            exit 0
+          fi
+
+          draft=false
+          if [ "$HAS_CONFLICTS" = "true" ]; then draft=true; fi
+          body="$(cat "$RUNNER_TEMP/upstream-pr-body.md")"
+          if gh api --method POST "repos/$GITHUB_REPOSITORY/pulls" \
+            -f title="chore: examiner les évolutions du dépôt officiel" \
+            -f head="$BRANCH" \
+            -f base="recette" \
+            -f body="$body" \
+            -F draft="$draft" \
+            --jq '.html_url'; then
+            echo "PR créée avec la GitHub App via l'API REST."
           else
-            echo "Une PR de revue est déjà ouverte pour $BRANCH."
+            echo "::warning::La GitHub App n'a pas pu créer la PR via REST."
+            echo "## PR à créer manuellement" >> "$GITHUB_STEP_SUMMARY"
+            echo "La branche \`$BRANCH\` est prête, mais la création de PR a été refusée." >> "$GITHUB_STEP_SUMMARY"
+            echo "[Ouvrir la comparaison et créer une PR](https://github.com/$GITHUB_REPOSITORY/compare/recette...$BRANCH?expand=1)" >> "$GITHUB_STEP_SUMMARY"
           fi
