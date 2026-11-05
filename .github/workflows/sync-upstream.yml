@@ -53,7 +53,7 @@ jobs:
 
           upstream_sha="$(git rev-parse upstream/main)"
           base_sha="$(git rev-parse HEAD)"
-          branch="automation/upstream-review-v2-$(git rev-parse --short=12 upstream/main)-$(git rev-parse --short=8 HEAD)"
+          branch="automation/upstream-review-v3-$(git rev-parse --short=12 upstream/main)-$(git rev-parse --short=8 HEAD)"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
           echo "changed=true" >> "$GITHUB_OUTPUT"
           echo "has_conflicts=false" >> "$GITHUB_OUTPUT"
@@ -93,6 +93,47 @@ jobs:
                 echo '~~~'
                 echo
               } >> "$report"
+              if [ "$file" = "sites_conformes/templates/sites_conformes_core/standalone.html" ]; then
+                git checkout --ours -- "$file"
+                if python3 - "$file" <<'PY'
+          import pathlib
+          import subprocess
+          import sys
+          
+          path = pathlib.Path(sys.argv[1])
+          local = path.read_text()
+          official = subprocess.check_output(["git", "show", f":3:{path}"], text=True)
+          start = "    {% block follow_newsletter_social_media %}"
+          end = "    {% endblock follow_newsletter_social_media %}"
+          def extract(value):
+              if value.count(start) != 1 or value.count(end) != 1:
+                  raise ValueError("bornes de bloc ambiguës")
+              a = value.index(start)
+              b = value.index(end, a) + len(end)
+              return value[a:b]
+          try:
+              old, new = extract(local), extract(official)
+              if '<aside id="cmsfr-block-follow">' not in old:
+                  raise ValueError("bloc local inattendu")
+              if "aria-label=" not in new or "{% with config=" not in new:
+                  raise ValueError("nouveau bloc officiel inattendu")
+              if '{% include "sites_conformes_core/blocks/follow.html" %}' not in new:
+                  raise ValueError("inclusion officielle absente")
+              merged = local.replace(old, new, 1)
+              for marker in ("assistant/assistant.css", "assistant/sidebar.html", "assistant/assistant.js"):
+                  if local.count(marker) != 1 or merged.count(marker) != 1:
+                      raise ValueError("personnalisation assistant IA modifiée")
+              path.write_text(merged)
+          except ValueError as error:
+              print(f"Fusion ciblée ignorée : {error}", file=sys.stderr)
+              sys.exit(1)
+          PY
+                then
+                  git add -- "$file"
+                  echo "Résolution ciblée appliquée : $file" >> "$GITHUB_STEP_SUMMARY"
+                  continue
+                fi
+              fi
               git checkout --ours -- "$file"
               git add -- "$file"
             done <<< "$conflicts"
@@ -112,7 +153,7 @@ jobs:
             if [ -n "$conflicts" ]; then
               echo "### Conflits à examiner avant fusion"
               echo
-              echo "Les fichiers suivants ont conservé la version de recette. Leurs différences avec le dépôt officiel sont dans le fichier \`.github/upstream-conflict-review.md\`, visible dans **Files changed**."
+              echo "Les fichiers conflictuels sont documentés dans \`.github/upstream-conflict-review.md\`. Une résolution ciblée peut modifier directement le fichier concerné : vérifier **Files changed**."
               echo "**Comparer ces fichiers avec leur version officielle et réintégrer les changements souhaités avant de fusionner :**"
               echo
               while IFS= read -r file; do
