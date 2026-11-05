@@ -53,7 +53,7 @@ jobs:
 
           upstream_sha="$(git rev-parse upstream/main)"
           base_sha="$(git rev-parse HEAD)"
-          branch="automation/upstream-review-v3-$(git rev-parse --short=12 upstream/main)-$(git rev-parse --short=8 HEAD)"
+          branch="automation/upstream-review-v4-$(git rev-parse --short=12 upstream/main)-$(git rev-parse --short=8 HEAD)"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
           echo "changed=true" >> "$GITHUB_OUTPUT"
           echo "has_conflicts=false" >> "$GITHUB_OUTPUT"
@@ -94,6 +94,8 @@ jobs:
                 echo
               } >> "$report"
               if [ "$file" = "sites_conformes/templates/sites_conformes_core/standalone.html" ]; then
+                # Lire la version officielle par sa référence, car checkout --ours
+                # supprime les entrées de conflit :2: et :3: de l’index.
                 git checkout --ours -- "$file"
                 if python3 - "$file" <<'PY'
           import pathlib
@@ -102,7 +104,7 @@ jobs:
           
           path = pathlib.Path(sys.argv[1])
           local = path.read_text()
-          official = subprocess.check_output(["git", "show", f":3:{path}"], text=True)
+          official = subprocess.check_output(["git", "show", f"upstream/main:{path}"], text=True)
           start = "    {% block follow_newsletter_social_media %}"
           end = "    {% endblock follow_newsletter_social_media %}"
           def extract(value):
