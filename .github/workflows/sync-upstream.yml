@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 concurrency:
   group: sync-upstream
@@ -52,9 +53,10 @@ jobs:
 
           upstream_sha="$(git rev-parse upstream/main)"
           base_sha="$(git rev-parse HEAD)"
-          branch="automation/upstream-$(git rev-parse --short=12 upstream/main)-$(git rev-parse --short=8 HEAD)"
+          branch="automation/upstream-review-v2-$(git rev-parse --short=12 upstream/main)-$(git rev-parse --short=8 HEAD)"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
           echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "has_conflicts=false" >> "$GITHUB_OUTPUT"
 
           # Préparer un vrai commit de fusion pour afficher les différences dans une PR.
           # En cas de conflit de contenu, garder provisoirement la version de recette.
@@ -69,11 +71,32 @@ jobs:
               echo "::error::Fusion impossible sans conflit de contenu identifiable."
               exit 1
             fi
+            echo "has_conflicts=true" >> "$GITHUB_OUTPUT"
+            mkdir -p .github
+            report=".github/upstream-conflict-review.md"
+            {
+              echo "# Modifications officielles masquées par les conflits"
+              echo
+              echo "Ces fichiers ont conservé provisoirement la version de recette."
+              echo "**Examiner les différences avant toute fusion.**"
+              echo
+            } > "$report"
             while IFS= read -r file; do
               [ -n "$file" ] || continue
+              {
+                printf '## %s\n\n' "$file"
+                printf '[Version recette](https://github.com/%s/blob/%s/%s) · ' "$GITHUB_REPOSITORY" "$base_sha" "$file"
+                printf '[Version officielle](https://github.com/numerique-gouv/sites-conformes/blob/%s/%s)\n\n' "$upstream_sha" "$file"
+                echo '~~~diff'
+                # Le rapport conserve au plus 400 lignes de diff par fichier.
+                diff -u <(git show ":2:$file") <(git show ":3:$file") | head -n 400 || true
+                echo '~~~'
+                echo
+              } >> "$report"
               git checkout --ours -- "$file"
               git add -- "$file"
             done <<< "$conflicts"
+            git add "$report"
           fi
           git commit -m "chore: proposer les évolutions officielles $upstream_sha"
 
@@ -87,9 +110,9 @@ jobs:
             echo "- Version de recette au départ : \`$base_sha\`"
             echo
             if [ -n "$conflicts" ]; then
-              echo "### Conflits résolus provisoirement"
+              echo "### Conflits à examiner avant fusion"
               echo
-              echo "Les fichiers suivants ont conservé intégralement la version de recette comme résolution provisoire. Certaines évolutions officielles de ces fichiers ne figurent donc pas dans le diff."
+              echo "Les fichiers suivants ont conservé la version de recette. Leurs différences avec le dépôt officiel sont dans le fichier `.github/upstream-conflict-review.md`, visible dans **Files changed**."
               echo "**Comparer ces fichiers avec leur version officielle et réintégrer les changements souhaités avant de fusionner :**"
               echo
               while IFS= read -r file; do
@@ -108,6 +131,8 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           BRANCH: ${{ steps.prepare.outputs.branch }}
+          HAS_CONFLICTS: ${{ steps.prepare.outputs.has_conflicts }}
+          GH_FALLBACK_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -119,9 +144,16 @@ jobs:
           fi
 
           if gh pr list --base recette --head "$BRANCH" --state open --json number --jq 'length' | grep -qx '0'; then
-            gh pr create --base recette --head "$BRANCH" \
+            draft_args=()
+            if [ "$HAS_CONFLICTS" = "true" ]; then draft_args+=(--draft); fi
+            if ! gh pr create --base recette --head "$BRANCH" \
               --title "chore: examiner les évolutions du dépôt officiel" \
-              --body-file "$RUNNER_TEMP/upstream-pr-body.md"
+              --body-file "$RUNNER_TEMP/upstream-pr-body.md" "${draft_args[@]}"; then
+              echo "::warning::Échec de création avec la GitHub App ; essai avec GITHUB_TOKEN."
+              GH_TOKEN="$GH_FALLBACK_TOKEN" gh pr create --base recette --head "$BRANCH" \
+                --title "chore: examiner les évolutions du dépôt officiel" \
+                --body-file "$RUNNER_TEMP/upstream-pr-body.md" "${draft_args[@]}"
+            fi
           else
             echo "Une PR de revue est déjà ouverte pour $BRANCH."
           fi
