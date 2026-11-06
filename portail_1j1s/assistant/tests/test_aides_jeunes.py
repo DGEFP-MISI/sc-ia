@@ -12,9 +12,14 @@ class AidesJeunesTests(SimpleTestCase):
     @patch("portail_1j1s.assistant.services.aides_jeunes.get_catalogue")
     def test_search_filters_private_and_demo(self, catalogue):
         catalogue.return_value = [
-            {"id": "aide-permis", "label": "Aide au permis de conduire",
-             "description": "Financement du permis", "institution": {"label": "État"},
-             "link": "https://example.org/permis", "conditions": []},
+            {
+                "id": "aide-permis",
+                "label": "Aide au permis de conduire",
+                "description": "Financement du permis",
+                "institution": {"label": "État"},
+                "link": "https://example.org/permis",
+                "conditions": [],
+            },
             {"id": "private", "label": "Aide au permis", "private": True},
             {"id": "aide-demonstration", "label": "Aide au permis"},
         ]
@@ -30,12 +35,22 @@ class AidesJeunesTests(SimpleTestCase):
     @patch("portail_1j1s.assistant.services.aides_jeunes.get_catalogue")
     def test_filters_age_and_department(self, catalogue):
         catalogue.return_value = [
-            {"id": "permis-35", "label": "Aide permis", "conditions_generales": [
-                {"type": "age", "operator": "<=", "value": 18},
-                {"type": "departements", "values": ["35"]}]},
-            {"id": "permis-51", "label": "Aide permis", "conditions_generales": [
-                {"type": "age", "operator": ">=", "value": 18},
-                {"type": "departements", "values": ["51"]}]},
+            {
+                "id": "permis-35",
+                "label": "Aide permis",
+                "conditions_generales": [
+                    {"type": "age", "operator": "<=", "value": 18},
+                    {"type": "departements", "values": ["35"]},
+                ],
+            },
+            {
+                "id": "permis-51",
+                "label": "Aide permis",
+                "conditions_generales": [
+                    {"type": "age", "operator": ">=", "value": 18},
+                    {"type": "departements", "values": ["51"]},
+                ],
+            },
         ]
         result = search_aides("permis", profile={"age": 20, "departement": "51"})
         self.assertEqual(len(result), 1)
