@@ -16,10 +16,38 @@ CACHE_SECONDS = 6 * 60 * 60
 MAX_RESPONSE_BYTES = 8 * 1024 * 1024
 MAX_RESULTS = 6
 STOP_WORDS = {
-    "a", "ai", "au", "aux", "avec", "comment", "dans", "de", "des", "du",
-    "en", "est", "et", "je", "la", "le", "les", "ma", "me", "mes",
-    "mon", "pour", "puis", "quelles", "quels", "que", "qui", "sur",
-    "une", "un", "veux", "vous",
+    "a",
+    "ai",
+    "au",
+    "aux",
+    "avec",
+    "comment",
+    "dans",
+    "de",
+    "des",
+    "du",
+    "en",
+    "est",
+    "et",
+    "je",
+    "la",
+    "le",
+    "les",
+    "ma",
+    "me",
+    "mes",
+    "mon",
+    "pour",
+    "puis",
+    "quelles",
+    "quels",
+    "que",
+    "qui",
+    "sur",
+    "une",
+    "un",
+    "veux",
+    "vous",
 }
 
 
@@ -78,9 +106,14 @@ def _criterion_matches(criterion, profile):
         age = profile.get("age")
         if age is None:
             return None
-        operators = {">=": lambda a, b: a >= b, "<=": lambda a, b: a <= b,
-                     ">": lambda a, b: a > b, "<": lambda a, b: a < b,
-                     "=": lambda a, b: a == b, "==": lambda a, b: a == b}
+        operators = {
+            ">=": lambda a, b: a >= b,
+            "<=": lambda a, b: a <= b,
+            ">": lambda a, b: a > b,
+            "<": lambda a, b: a < b,
+            "=": lambda a, b: a == b,
+            "==": lambda a, b: a == b,
+        }
         op = operators.get(criterion.get("operator"))
         return op(age, criterion["value"]) if op and isinstance(criterion.get("value"), (int, float)) else None
     fields = {"departements": "departement", "regions": "region", "communes": "commune"}
@@ -115,9 +148,7 @@ def search_aides(question, *, profile=None, limit=MAX_RESULTS):
         profils = aide.get("profils") or []
         # Les profils sont des alternatives ; un profil reconnu incompatible exclut l'aide.
         known_profile = profile.get("situation")
-        if known_profile and profils and all(
-            p.get("type") != known_profile for p in profils if isinstance(p, dict)
-        ):
+        if known_profile and profils and all(p.get("type") != known_profile for p in profils if isinstance(p, dict)):
             continue
         label = _normalize(aide.get("label"))
         description = _normalize(_plain_text(aide.get("description")))
@@ -128,17 +159,22 @@ def search_aides(question, *, profile=None, limit=MAX_RESULTS):
         if not score:
             continue
         institution = aide.get("institution") or {}
-        matches.append((score, {
-            "titre": aide.get("label", ""),
-            "organisme": institution.get("label", "") if isinstance(institution, dict) else "",
-            "description": _plain_text(aide.get("description"))[:500],
-            "conditions": [_plain_text(c) for c in (aide.get("conditions") or [])[:5]],
-            "criteres": criteria,
-            "criteres_a_verifier": sum(v is None for v in evaluations),
-            "montant": aide.get("montant"),
-            "unite": aide.get("unit"),
-            "periodicite": aide.get("periodicite"),
-            "lien": aide.get("link"),
-        }))
+        matches.append(
+            (
+                score,
+                {
+                    "titre": aide.get("label", ""),
+                    "organisme": institution.get("label", "") if isinstance(institution, dict) else "",
+                    "description": _plain_text(aide.get("description"))[:500],
+                    "conditions": [_plain_text(c) for c in (aide.get("conditions") or [])[:5]],
+                    "criteres": criteria,
+                    "criteres_a_verifier": sum(v is None for v in evaluations),
+                    "montant": aide.get("montant"),
+                    "unite": aide.get("unit"),
+                    "periodicite": aide.get("periodicite"),
+                    "lien": aide.get("link"),
+                },
+            )
+        )
     matches.sort(key=lambda item: item[0], reverse=True)
-    return [item for _, item in matches[:max(0, min(limit, MAX_RESULTS))]]
+    return [item for _, item in matches[: max(0, min(limit, MAX_RESULTS))]]
