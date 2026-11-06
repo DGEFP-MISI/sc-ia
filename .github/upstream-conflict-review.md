@@ -56,4 +56,3 @@ Ce rapport compare les versions en conflit. Certaines modifications peuvent avoi
      {% endblock extra_js %}
  
 ~~~
-
