@@ -3,12 +3,23 @@
 import json
 import re
 
-from .albert import AlbertClient, AlbertAPIError
+from .albert import AlbertAPIError, AlbertClient
 
 SITUATIONS = {
-    "apprenti", "enseignement_superieur", "etudiant", "lyceen", "chomeur",
-    "stagiaire", "service_civique", "salarie", "inactif", "independant",
-    "beneficiaire_rsa", "professionnalisation", "parent", "collegien",
+    "apprenti",
+    "enseignement_superieur",
+    "etudiant",
+    "lyceen",
+    "chomeur",
+    "stagiaire",
+    "service_civique",
+    "salarie",
+    "inactif",
+    "independant",
+    "beneficiaire_rsa",
+    "professionnalisation",
+    "parent",
+    "collegien",
 }
 
 
@@ -38,9 +49,7 @@ def interpret_aides(messages):
         "N'invente aucun code géographique ; utilise null en cas d'incertitude."
     )
     try:
-        answer = AlbertClient().chat(
-            [{"role": "system", "content": instructions}] + messages[-12:]
-        )
+        answer = AlbertClient().chat([{"role": "system", "content": instructions}] + messages[-12:])
         match = re.search(r"\{[\s\S]*\}", answer)
         data = json.loads(match.group(0)) if match else {}
     except (AlbertAPIError, ValueError, TypeError, AttributeError):
@@ -50,6 +59,7 @@ def interpret_aides(messages):
     age = data.get("age")
     if not isinstance(age, int) or isinstance(age, bool) or not 0 <= age <= 120:
         age = None
+
     def code(key, max_length):
         value = data.get(key)
         if isinstance(value, (str, int)) and re.fullmatch(r"[0-9A-Za-z]{2," + str(max_length) + r"}", str(value)):
