@@ -71,8 +71,34 @@ def get_catalogue():
     return data
 
 
-def search_aides(question, *, limit=MAX_RESULTS):
-    """Recherche lexicale prudente, sans conclure à une éligibilité."""
+def _criterion_matches(criterion, profile):
+    """False = exclusion certaine ; None = critère inconnu, à vérifier."""
+    kind = criterion.get("type")
+    if kind == "age":
+        age = profile.get("age")
+        if age is None:
+            return None
+        operators = {">=": lambda a, b: a >= b, "<=": lambda a, b: a <= b,
+                     ">": lambda a, b: a > b, "<": lambda a, b: a < b,
+                     "=": lambda a, b: a == b, "==": lambda a, b: a == b}
+        op = operators.get(criterion.get("operator"))
+        return op(age, criterion["value"]) if op and isinstance(criterion.get("value"), (int, float)) else None
+    fields = {"departements": "departement", "regions": "region", "communes": "commune"}
+    if kind in fields:
+        known = profile.get(fields[kind])
+        values = criterion.get("values")
+        if known is None or not isinstance(values, list):
+            return None
+        return str(known) in [str(v) for v in values]
+    return None
+
+
+def search_aides(question, *, profile=None, limit=MAX_RESULTS):
+    """Recherche les aides pertinentes et écarte seulement les incompatibilités vérifiées.
+
+    Les critères non pris en charge sont signalés comme restant à vérifier.
+    """
+    profile = profile or {}
     tokens = set(_normalize(question).split()) - STOP_WORDS
     if not tokens:
         return []
@@ -81,6 +107,17 @@ def search_aides(question, *, limit=MAX_RESULTS):
         if not isinstance(aide, dict) or aide.get("private") is True:
             continue
         if "demonstration" in _normalize(aide.get("id")) or "test" in _normalize(aide.get("id")):
+            continue
+        criteria = aide.get("conditions_generales") or []
+        evaluations = [_criterion_matches(c, profile) for c in criteria if isinstance(c, dict)]
+        if False in evaluations:
+            continue
+        profils = aide.get("profils") or []
+        # Les profils sont des alternatives ; un profil reconnu incompatible exclut l'aide.
+        known_profile = profile.get("situation")
+        if known_profile and profils and all(
+            p.get("type") != known_profile for p in profils if isinstance(p, dict)
+        ):
             continue
         label = _normalize(aide.get("label"))
         description = _normalize(_plain_text(aide.get("description")))
@@ -96,7 +133,8 @@ def search_aides(question, *, limit=MAX_RESULTS):
             "organisme": institution.get("label", "") if isinstance(institution, dict) else "",
             "description": _plain_text(aide.get("description"))[:500],
             "conditions": [_plain_text(c) for c in (aide.get("conditions") or [])[:5]],
-            "criteres": aide.get("conditions_generales") or [],
+            "criteres": criteria,
+            "criteres_a_verifier": sum(v is None for v in evaluations),
             "montant": aide.get("montant"),
             "unite": aide.get("unit"),
             "periodicite": aide.get("periodicite"),
