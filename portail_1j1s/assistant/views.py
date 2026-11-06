@@ -8,6 +8,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from .conf import assistant_enabled
 from .models import AssistantConversation
+from .services.aides_jeunes import AidesJeunesAPIError, search_aides
 from .services.albert import AlbertAPIError, AlbertClient
 from .services.markdown import render_assistant_markdown
 
@@ -193,6 +194,26 @@ def assistant_chat(request):
             "content": message,
         }
     )
+
+    # Enrichir les questions relatives aux aides avec des données officielles.
+    aide_terms = ("aide", "allocation", "bourse", "financement", "subvention", "prime")
+    if any(term in message.lower() for term in aide_terms):
+        try:
+            aides = search_aides(message)
+        except AidesJeunesAPIError:
+            aides = []
+        if aides:
+            messages.append({
+                "role": "system",
+                "content": (
+                    "Données issues du catalogue public des aides 1jeune1solution "
+                    "(métadonnées, non simulation). Utilise uniquement les aides "
+                    "pertinentes et cite leurs liens officiels. Ne confirme jamais "
+                    "l'éligibilité, ne présente pas un montant comme garanti et "
+                    "indique les conditions restant à vérifier. Données JSON : "
+                    + json.dumps(aides, ensure_ascii=False)[:14000]
+                ),
+            })
 
     try:
         answer = AlbertClient().chat(messages)
