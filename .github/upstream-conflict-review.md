@@ -1,6 +1,7 @@
+<!-- markdownlint-disable MD013 -->
 # Modifications officielles masquées par les conflits
 
-Ces fichiers ont conservé provisoirement la version de recette.
+Ce rapport compare les versions en conflit. Certaines modifications peuvent avoir été intégrées automatiquement.
 **Examiner les différences avant toute fusion.**
 
 ## sites_conformes/templates/sites_conformes_core/standalone.html
@@ -8,8 +9,8 @@ Ces fichiers ont conservé provisoirement la version de recette.
 [Version recette](https://github.com/DGEFP-MISI/sc-ia/blob/b8f591bc7e0774754c35e1d473586f02ed18b253/sites_conformes/templates/sites_conformes_core/standalone.html) · [Version officielle](https://github.com/numerique-gouv/sites-conformes/blob/579ed6695c3b2545d1f8be2a73a5e1c60067d97d/sites_conformes/templates/sites_conformes_core/standalone.html)
 
 ~~~diff
---- /dev/fd/63	2026-11-05 08:37:44.187685721 +0000
-+++ /dev/fd/62	2026-11-05 08:37:44.187685721 +0000
+--- version recette
++++ version officielle
 @@ -24,10 +24,7 @@
      {% dsfr_favicon %}
  
