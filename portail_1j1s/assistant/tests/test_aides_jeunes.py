@@ -26,3 +26,17 @@ class AidesJeunesTests(SimpleTestCase):
     def test_no_match(self, catalogue):
         catalogue.return_value = [{"id": "logement", "label": "Aide au logement"}]
         self.assertEqual(search_aides("permis"), [])
+
+    @patch("portail_1j1s.assistant.services.aides_jeunes.get_catalogue")
+    def test_filters_age_and_department(self, catalogue):
+        catalogue.return_value = [
+            {"id": "permis-35", "label": "Aide permis", "conditions_generales": [
+                {"type": "age", "operator": "<=", "value": 18},
+                {"type": "departements", "values": ["35"]}]},
+            {"id": "permis-51", "label": "Aide permis", "conditions_generales": [
+                {"type": "age", "operator": ">=", "value": 18},
+                {"type": "departements", "values": ["51"]}]},
+        ]
+        result = search_aides("permis", profile={"age": 20, "departement": "51"})
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["criteres"][1]["values"], ["51"])
