@@ -72,18 +72,13 @@
                         {% url 'wagtailadmin_home' as home_url %}
                         <input type="hidden" name="next" value="{{ next|default:home_url }}" />
                         <div class="fr-input-group">
-                          {# Les champs sont rendus par Django, avec des ids générés à l'exécution. #}
-                          {# djlint:off H042 #}
                           <label class="fr-label" for="id_username">{% translate "Username:" %}</label>
-                          {# djlint:on #}
                           {{ form.username |attr:"autocomplete:username" |add_class:"fr-input" }}
                         </div>
                       </div>
                       <div class="fr-fieldset__element">
                         <div class="fr-password">
-                          {# djlint:off H042 #}
                           <label class="fr-label" for="id_password">{% translate "Password:" %}</label>
-                          {# djlint:on #}
                           {{ form.password |attr:"autocomplete:current-password" |add_class:"fr-password__input fr-input" }}
                           <div class="fr-password__checkbox fr-checkbox-group fr-checkbox-group--sm">
                             {% translate "Show password" as show_password %}
@@ -107,10 +102,8 @@
                         <div class="fr-checkbox-group fr-checkbox-group--sm">
                           <div class="fr-checkbox-group}">
                             {{ form.remember }}
-                            {# djlint:off H042 #}
                             <label for="{{ form.remember.id_for_label }}"
                                    class="fr-label">{% translate "Remember me" %}</label>
-                            {# djlint:on #}
                           </div>
                         </div>
                       </div>
