@@ -75,9 +75,10 @@ jobs:
             mkdir -p .github
             report=".github/upstream-conflict-review.md"
             {
+              echo "<!-- markdownlint-disable MD013 -->"
               echo "# Modifications officielles masquées par les conflits"
               echo
-              echo "Ces fichiers ont conservé provisoirement la version de recette."
+              echo "Ce rapport compare les versions en conflit. Certaines modifications peuvent avoir été intégrées automatiquement."
               echo "**Examiner les différences avant toute fusion.**"
               echo
             } > "$report"
@@ -89,7 +90,7 @@ jobs:
                 printf '[Version officielle](https://github.com/numerique-gouv/sites-conformes/blob/%s/%s)\n\n' "$upstream_sha" "$file"
                 echo '~~~diff'
                 # Le rapport conserve au plus 400 lignes de diff par fichier.
-                diff -u <(git show ":2:$file") <(git show ":3:$file") | head -n 400 || true
+                diff -u --label "version recette" --label "version officielle" <(git show ":2:$file") <(git show ":3:$file") | head -n 400 || true
                 echo '~~~'
                 echo
               } >> "$report"
