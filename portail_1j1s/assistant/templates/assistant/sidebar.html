@@ -30,7 +30,10 @@
 
   <form id="assistant-ia-form" class="assistant-ia__form">
     {% csrf_token %}
+    {# Le textarea associé porte bien cet id ; djLint H042 est un faux positif ici. #}
+    {# djlint:off H042 #}
     <label for="assistant-ia-input" class="fr-label">Ton message</label>
+    {# djlint:on #}
 
     <textarea id="assistant-ia-input"
               name="message"
