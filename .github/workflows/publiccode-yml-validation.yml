@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: italia/publiccode-parser-action@v1
+      - uses: italia/publiccode-parser-action@f370d239aa3ec57b819909b467ff77679b6dc721 # v1
         with:
           publiccode: 'publiccode.yml'
         continue-on-error: true
