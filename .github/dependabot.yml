@@ -1,0 +1,20 @@
+# Mises à jour des actions GitHub épinglées par SHA (SSI, 10/11/2026)
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directories:
+      - "/"                          # .github/workflows
+      - "/.github/actions/setup-e2e" # action composite locale
+    target-branch: "recette"         # circuit sc-ia : recette puis main par PR
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Europe/Paris"
+    groups:
+      actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "ci"
+    open-pull-requests-limit: 5
