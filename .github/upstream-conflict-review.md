@@ -4,55 +4,65 @@
 Ce rapport compare les versions en conflit. Certaines modifications peuvent avoir été intégrées automatiquement.
 **Examiner les différences avant toute fusion.**
 
-## sites_conformes/templates/sites_conformes_core/standalone.html
+## config/settings.py
 
-[Version recette](https://github.com/DGEFP-MISI/sc-ia/blob/b8f591bc7e0774754c35e1d473586f02ed18b253/sites_conformes/templates/sites_conformes_core/standalone.html) · [Version officielle](https://github.com/numerique-gouv/sites-conformes/blob/579ed6695c3b2545d1f8be2a73a5e1c60067d97d/sites_conformes/templates/sites_conformes_core/standalone.html)
+[Version recette](https://github.com/DGEFP-MISI/sc-ia/blob/bf81640e99d00fa29ab08715ad24c39306c71f27/config/settings.py) · [Version officielle](https://github.com/numerique-gouv/sites-conformes/blob/64cd9d88396649a5ebcdb1ac7ba09ca9b9f62804/config/settings.py)
 
 ~~~diff
 --- version recette
 +++ version officielle
-@@ -24,10 +24,7 @@
-     {% dsfr_favicon %}
+@@ -34,6 +34,10 @@
+     return value.casefold() in ["1", "true"]
  
-     {% dsfr_css %}
--    <link href="{% static 'css/style.css' %}" rel="stylesheet" type="text/css" />
--    {% if assistant_ia_enabled %}
--      <link href="{% static 'assistant/assistant.css' %}" rel="stylesheet" type="text/css" />  
--    {% endif %}
-+    <link href="{% static 'css/style.css' %}" rel="stylesheet" />
  
-     {% block extra_css %}
-     {% endblock extra_css %}
-@@ -63,15 +60,14 @@
-       {% endblock content %}
-     </main>
++def getenv_list(key: str, default: str) -> list[str]:
++    return os.getenv(key, default).replace(" ", "").split(",")
++
++
+ # Quick-start development settings - unsuitable for production
+ # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
  
--    {% if assistant_ia_enabled %}
--      {% include "assistant/sidebar.html" %}
--    {% endif %}
+@@ -43,15 +47,7 @@
+ # SECURITY WARNING: don't run with debug turned on in production!
+ DEBUG = getenv_bool("DEBUG", False)
+ 
+-# Protection des cookies de session et CSRF en production.
+-SESSION_COOKIE_SECURE = not DEBUG
+-SESSION_COOKIE_HTTPONLY = True
+-SESSION_COOKIE_SAMESITE = "Lax"
 -
-     {% block follow_newsletter_social_media %}
-       {% if settings.sites_conformes_core.CmsDsfrConfig.show_newsletter_and_social_block %}
--        <aside id="cmsfr-block-follow">
--          {% include "sites_conformes_core/blocks/follow.html" %}
--        </aside>
-+        {% with config=settings.sites_conformes_core.CmsDsfrConfig %}
-+          <aside id="cmsfr-block-follow"
-+                 aria-label="{% if config.show_newsletter_block and config.show_social_block %}{% translate "Newsletter and social media" %}{% elif config.show_newsletter_block %}{% translate "Newsletter" %}{% else %}{% translate "Social media" %}{% endif %}">
-+            {% include "sites_conformes_core/blocks/follow.html" %}
-+          </aside>
-+        {% endwith %}
-       {% endif %}
-     {% endblock follow_newsletter_social_media %}
+-CSRF_COOKIE_SECURE = not DEBUG
+-CSRF_COOKIE_SAMESITE = "Lax"
+-
+-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,.localhost").replace(" ", "").split(",")
++ALLOWED_HOSTS = getenv_list("ALLOWED_HOSTS", "127.0.0.1,.localhost")
+ USE_X_FORWARDED_HOST = getenv_bool("USE_X_FORWARDED_HOST", False)
  
-@@ -82,9 +78,6 @@
-     {% endif %}
+ HOST_PROTO = os.getenv("HOST_PROTO", "https")
+@@ -117,7 +113,6 @@
+     "django.contrib.staticfiles",
+     "widget_tweaks",
+     "dsfr",
+-    "portail_1j1s.assistant.apps.AssistantConfig",
+     "sites_conformes.customimages",
+     "sites_conformes.core",
+     "sites_conformes.blog",
+@@ -213,7 +208,6 @@
+                 "sites_conformes.core.context_processors.skiplinks",
+                 "sites_conformes.core.context_processors.mega_menus",
+                 "sites_conformes.core.context_processors.iframe",
+-                "portail_1j1s.assistant.context_processors.assistant_settings",
+             ],
+         },
+     },
+@@ -474,7 +468,7 @@
  
-     {% dsfr_js nonce=request.csp_nonce %}
--    {% if assistant_ia_enabled %}
--      <script src="{% static 'assistant/assistant.js' %}" defer nonce="{{ request.csp_nonce }}"></script>
--    {% endif %}
-     {% block extra_js %}
-     {% endblock extra_js %}
+ WAGTAILIMAGES_IMAGE_MODEL = "sites_conformes_customimages.CustomImage"
+ WAGTAILIMAGES_EXTENSIONS = ["gif", "jpg", "jpeg", "png", "webp", "svg"]
+-WAGTAILDOCS_EXTENSIONS = ["pdf", "docx", "odt", "xlsx", "ods", "pptx", "odp", "csv", "txt"]
++WAGTAILDOCS_EXTENSIONS = getenv_list("WAGTAILDOCS_EXTENSIONS", "pdf,docx,odt,xlsx,ods,pptx,odp,csv,txt")
+ SF_SCHEME_DEPENDENT_SVGS = getenv_bool("SF_SCHEME_DEPENDENT_SVGS", False)
  
+ # Allows for complex Streamfields without completely removing checks
 ~~~
+
