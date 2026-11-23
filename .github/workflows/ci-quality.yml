@@ -32,9 +32,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: 🐍 Set up uv
-        uses: astral-sh/setup-uv@v10.3.0
+        uses: astral-sh/setup-uv@v10.4.0
       - name: ✨ Run quality checks on all files
-        uses: j178/prek-action@v3.1.0
+        uses: j178/prek-action@v3.1.1
       - name: 🌍 Install dependencies
         run: |
           uv sync
